@@ -91,7 +91,7 @@ def call_gh_command(branches):
     gh_command = ['gh', 'pr', 'list', f"--search={github_search_command}", '--json=baseRefName,headRefName', f'-L{len(branches)}']
     return check_output(gh_command).decode('utf-8')
 
-def branches_merged_via_github_pr(branches):
+def branches_merged_via_github_pr(branches, verbose=False):
     """
     Get the branches that have been merged via PR in Github
 
@@ -102,15 +102,24 @@ def branches_merged_via_github_pr(branches):
         Dictionary with key for all branches that have been merged with a
         value of a list of all the branches that branch was merged into via PR
     """
+    if verbose:
+        print("Checking Github for merged PRs for %i branches" % len(branches))
+
     remote_merged_branches_json = call_gh_command(branches)
     pr_merged_branches = {}
-    for remote_merged_branch in parse_json(remote_merged_branches_json):
+    remote_merged_branches = parse_json(remote_merged_branches_json)
+
+    if verbose:
+        print("Found %i merged PRs" % len(remote_merged_branches))
+
+    for remote_merged_branch in remote_merged_branches:
         head = remote_merged_branch["headRefName"]
         base = remote_merged_branch["baseRefName"]
         if head in branches:
             if head not in pr_merged_branches:
                 pr_merged_branches[head] = []
             pr_merged_branches[head].append(base)
+
     return pr_merged_branches
 
 
@@ -264,7 +273,7 @@ if __name__ == "__main__":
             exit(1)
 
         local_branches = get_local_branches()
-        pr_merged_branches = branches_merged_via_github_pr(local_branches)
+        pr_merged_branches = branches_merged_via_github_pr(local_branches, arguments.verbose)
 
         # Exclude all protected branches
         [pr_merged_branches.pop(key, None) for key in arguments.protected]
